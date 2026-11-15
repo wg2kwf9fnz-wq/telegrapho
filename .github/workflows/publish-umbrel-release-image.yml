@@ -41,17 +41,35 @@ jobs:
           tags: ghcr.io/wg2kwf9fnz-wq/telegrapho:1.0.1-patch.1
           provenance: false
 
+      - name: Verify public pull and architecture index
+        run: |
+          docker logout ghcr.io
+          docker buildx imagetools inspect ghcr.io/wg2kwf9fnz-wq/telegrapho:1.0.1-patch.1 --raw > /tmp/telegrapho-image-index.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const manifest = JSON.parse(fs.readFileSync('/tmp/telegrapho-image-index.json', 'utf8'));
+          const platforms = new Set((manifest.manifests ?? [])
+            .map(({ platform }) => platform ? `${platform.os}/${platform.architecture}` : '')
+            .filter(Boolean));
+          for (const required of ['linux/amd64', 'linux/arm64']) {
+            if (!platforms.has(required)) {
+              console.error(`Missing required image platform: ${required}`);
+              process.exit(1);
+            }
+          }
+          console.log('Anonymous image pull succeeded; linux/amd64 and linux/arm64 are present.');
+          NODE
+
       - name: Record source commit and image digest
         env:
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           SOURCE_SHA="$(git rev-parse HEAD)"
           {
-            echo "### Telegrapho Umbrel release image"
-            echo
-            echo "- Source ref: `release/telegrapho-1.0.1-patch.1`"
-            echo "- Source commit: `$SOURCE_SHA`"
-            echo "- Image: `ghcr.io/wg2kwf9fnz-wq/telegrapho:1.0.1-patch.1`"
-            echo "- Digest: `$IMAGE_DIGEST`"
-            echo "- Platforms: `linux/amd64`, `linux/arm64`"
+            printf '%s\n' '### Telegrapho Umbrel release image' ''
+            printf '%s\n' "- Source ref: release/telegrapho-1.0.1-patch.1"
+            printf '%s\n' "- Source commit: $SOURCE_SHA"
+            printf '%s\n' "- Image: ghcr.io/wg2kwf9fnz-wq/telegrapho:1.0.1-patch.1"
+            printf '%s\n' "- Digest: $IMAGE_DIGEST"
+            printf '%s\n' '- Platforms: linux/amd64, linux/arm64'
           } >> "$GITHUB_STEP_SUMMARY"
