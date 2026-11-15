@@ -2,24 +2,19 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# evita reinstall desnecessário
+# Install production dependencies
 COPY package*.json ./
-
 RUN npm ci --omit=dev
 
 COPY . .
 
-# cria usuário não-root (alinha com Umbrel)
-RUN addgroup -S -g 1000 app && adduser -S -u 1000 -G app app
-
-# The persistent /data bind mount is owned by root on first start.
-# Prepare it as root, then run the application as the unprivileged app user.
+# The official node:20-alpine image already provides node with UID/GID 1000.
+# Prepare the persistent bind mount as root, then drop privileges to node.
 RUN apk add --no-cache su-exec
 
 EXPOSE 3712
 
-# healthcheck leve
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget -qO- http://localhost:3712/health || exit 1
 
-CMD ["sh", "-c", "mkdir -p /data && chown app:app /data && exec su-exec app node server.js"]
+CMD ["sh", "-c", "mkdir -p /data && chown node:node /data && exec su-exec node node server.js"]
