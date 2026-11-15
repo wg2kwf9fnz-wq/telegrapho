@@ -8,13 +8,13 @@ RUN npm ci --omit=dev
 
 COPY . .
 
-# The official node:20-alpine image already provides node with UID/GID 1000.
-# Prepare the persistent bind mount as root, then drop privileges to node.
-RUN apk add --no-cache su-exec
+# Run the app as the unprivileged node user (UID/GID 1000).
+# Umbrel's pre-start hook prepares the persistent /data mount ownership.
+USER node
 
 EXPOSE 3712
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget -qO- http://localhost:3712/health || exit 1
 
-CMD ["sh", "-c", "mkdir -p /data && chown node:node /data && exec su-exec node node server.js"]
+CMD ["node", "server.js"]
