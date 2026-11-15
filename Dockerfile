@@ -10,7 +10,7 @@ RUN npm ci --omit=dev
 COPY . .
 
 # cria usuário não-root (alinha com Umbrel)
-RUN addgroup -S app && adduser -S app -G app
+RUN addgroup -S -g 1000 app && adduser -S -u 1000 -G app app
 
 # The persistent /data bind mount is owned by root on first start.
 # Prepare it as root, then run the application as the unprivileged app user.
